@@ -19,6 +19,16 @@ from app.schemas.version_schema import (
     VersionListResponse,
     VersionSummary,
 )
+from app.schemas.pdf_metadata_schema import (
+    PDFMetadataResponse,
+    PDFMetadataSummarySchema,
+    PDFMetadataCreate,
+    PageMetadataSchema,
+    TextBlockSchema,
+    ImageInfoSchema,
+    FormFieldSchema,
+    PageDimensionsSchema,
+)
 
 __all__ = [
     "TemplateBase",
@@ -31,4 +41,12 @@ __all__ = [
     "VersionResponse",
     "VersionListResponse",
     "VersionSummary",
+    "PDFMetadataResponse",
+    "PDFMetadataSummarySchema",
+    "PDFMetadataCreate",
+    "PageMetadataSchema",
+    "TextBlockSchema",
+    "ImageInfoSchema",
+    "FormFieldSchema",
+    "PageDimensionsSchema",
 ]

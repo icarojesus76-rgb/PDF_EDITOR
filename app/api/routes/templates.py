@@ -11,8 +11,18 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.exceptions import PDFEditorException
 from app.core.logging_config import logger
-from app.schemas import TemplateResponse, TemplateListResponse, TemplateSummary
-from app.services import FileStorageService, PDFValidationService, TemplateService
+from app.schemas import (
+    TemplateResponse,
+    TemplateListResponse,
+    TemplateSummary,
+    PDFMetadataResponse,
+)
+from app.services import (
+    FileStorageService,
+    PDFValidationService,
+    PDFLoaderService,
+    TemplateService,
+)
 
 router = APIRouter(
     prefix="/templates",
@@ -27,7 +37,10 @@ router = APIRouter(
 def get_template_service(db: Session = Depends(get_db)) -> TemplateService:
     """Factory para injeção de dependência do TemplateService."""
     return TemplateService(
-        db=db, file_storage=FileStorageService(), pdf_validator=PDFValidationService()
+        db=db,
+        file_storage=FileStorageService(),
+        pdf_validator=PDFValidationService(),
+        pdf_loader=PDFLoaderService(),
     )
 
 
@@ -148,6 +161,76 @@ async def get_template(
         if e.code == "TEMPLATE_NOT_FOUND":
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=e.to_dict()
+            )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e.to_dict()
+        )
+
+
+@router.get(
+    "/{template_id}/metadata",
+    response_model=PDFMetadataResponse,
+    summary="Busca metadados do template",
+    description="Retorna metadados detalhados extraídos do PDF.",
+)
+async def get_template_metadata(
+    template_id: int, service: TemplateService = Depends(get_template_service)
+) -> PDFMetadataResponse:
+    """
+    Retorna metadados detalhados do PDF template.
+
+    Inclui:
+    - Quantidade de páginas
+    - Dimensões de cada página
+    - Blocos de texto com posicionamento
+    - Imagens e elementos visuais
+    - Campos de formulário existentes
+
+    Args:
+        template_id: ID do template
+
+    Returns:
+        PDFMetadataResponse com metadados completos
+
+    Raises:
+        404: Se template ou metadados não encontrados
+    """
+    try:
+        metadata = service.get_template_metadata(template_id)
+
+        # Carrega detalhes das páginas
+        pages = metadata.pages.all()
+
+        # Constrói resposta
+        response_dict = {
+            "id": metadata.id,
+            "template_id": metadata.template_id,
+            "page_count": metadata.page_count,
+            "pdf_version": metadata.pdf_version,
+            "title": metadata.title,
+            "author": metadata.author,
+            "creator": metadata.creator,
+            "producer": metadata.producer,
+            "metadata_json_path": metadata.metadata_json_path,
+            "page_dimensions": metadata.page_dimensions,
+            "pages": [p.to_dict() for p in pages],
+            "total_text_blocks": metadata.total_text_blocks,
+            "total_images": metadata.total_images,
+            "total_forms": metadata.total_forms,
+            "extracted_at": metadata.extracted_at,
+            "updated_at": metadata.updated_at,
+        }
+
+        return PDFMetadataResponse.model_validate(response_dict)
+
+    except PDFEditorException as e:
+        if e.code == "TEMPLATE_NOT_FOUND":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "error": "METADATA_NOT_FOUND",
+                    "message": f"Metadados não encontrados para template {template_id}",
+                },
             )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e.to_dict()
