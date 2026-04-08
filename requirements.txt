@@ -4,6 +4,7 @@ sqlalchemy==2.0.25
 python-multipart==0.0.6
 pypdf2==3.0.1
 pymupdf==1.23.8
+reportlab==4.0.9
 python-dotenv==1.0.0
 pydantic==2.5.3
 pydantic-settings==2.1.0
