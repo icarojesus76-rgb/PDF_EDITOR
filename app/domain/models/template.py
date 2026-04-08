@@ -18,6 +18,7 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.domain.models.version import Version
     from app.domain.models.pdf_metadata import PDFMetadata
+    from app.domain.models.field import Field
 
 
 class TemplateStatus(str, Enum):
@@ -75,6 +76,13 @@ class Template(Base):
         back_populates="template",
         uselist=False,  # One-to-one
         cascade="all, delete-orphan",
+    )
+    fields = relationship(
+        "Field",
+        back_populates="template",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+        order_by="Field.order, Field.id",
     )
 
     def __repr__(self) -> str:
