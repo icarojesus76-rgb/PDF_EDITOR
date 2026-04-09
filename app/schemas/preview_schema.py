@@ -19,6 +19,12 @@ class PreviewCreateRequest(BaseModel):
         None, max_length=100, description="Usuário responsável"
     )
     generate_images: bool = Field(True, description="Gerar imagens por página")
+    validate_fields: bool = Field(
+        True, description="Validar campos antes de criar preview"
+    )
+    skip_validation: bool = Field(
+        False, description="Pular validação e criar preview mesmo com erros"
+    )
 
 
 class PreviewConfirmRequest(BaseModel):
@@ -88,3 +94,21 @@ class PreviewImageResponse(BaseModel):
     preview_id: int
     page: int
     image_url: str
+
+
+class FieldValidationError(BaseModel):
+    """Erro de validação de campo."""
+
+    field_name: str
+    code: str
+    message: str
+    value: Optional[str] = None
+
+
+class PreviewValidationResult(BaseModel):
+    """Resultado da validação dos campos do preview."""
+
+    is_valid: bool
+    errors: list[FieldValidationError] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    formatted_values: dict[str, str] = Field(default_factory=dict)

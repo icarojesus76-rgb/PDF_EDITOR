@@ -67,6 +67,8 @@ async def create_preview(
             field_values=request.field_values,
             created_by=request.created_by,
             generate_images=request.generate_images,
+            validate_fields=request.validate_fields,
+            skip_validation=request.skip_validation,
         )
 
         return PreviewTokenResponse(
@@ -78,6 +80,7 @@ async def create_preview(
         status_map = {
             "TEMPLATE_NOT_FOUND": status.HTTP_404_NOT_FOUND,
             "PREVIEW_RENDER_ERROR": status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "FIELD_VALIDATION_ERROR": status.HTTP_422_UNPROCESSABLE_ENTITY,
         }
         http_status = status_map.get(e.code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         raise HTTPException(status_code=http_status, detail=e.to_dict())

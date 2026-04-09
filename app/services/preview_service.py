@@ -20,10 +20,24 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.exceptions import PDFEditorException
 from app.core.logging_config import logger
+from app.core.validators import FieldValidationService
 from app.domain.models.field import Field
 from app.domain.models.preview import Preview, PreviewStatus
 from app.domain.models.template import Template
 from app.domain.models.version import Version, VersionStatus
+
+
+class ValidationError(PDFEditorException):
+    """Erro de validação de campos."""
+
+    def __init__(self, errors: list[dict], warnings: list[str] = None):
+        self.errors = errors
+        self.warnings = warnings or []
+        super().__init__(
+            message="Erro de validação dos campos",
+            code="FIELD_VALIDATION_ERROR",
+            detail={"errors": errors, "warnings": warnings},
+        )
 
 
 class PreviewNotFoundError(PDFEditorException):
@@ -81,6 +95,8 @@ class PreviewService:
         field_values: dict[str, str],
         created_by: Optional[str] = None,
         generate_images: bool = True,
+        validate_fields: bool = True,
+        skip_validation: bool = False,
     ) -> Preview:
         """
         Cria uma nova pré-visualização temporária.
@@ -90,15 +106,34 @@ class PreviewService:
             field_values: Valores dos campos para renderizar
             created_by: Usuário responsável
             generate_images: Se deve gerar imagens por página
+            validate_fields: Se deve validar campos antes de criar
+            skip_validation: Se deve criar mesmo com erros de validação
 
         Returns:
             Preview criado com PDF e imagens temporários
 
         Raises:
             TemplateNotFoundError: Se template não existir
+            ValidationError: Se validação falhar
         """
         template = self._get_template(template_id)
         fields = self._get_template_fields(template_id)
+
+        field_configs = self._build_field_configs(fields)
+
+        if validate_fields:
+            validation_result = self._validate_field_values(
+                field_configs=field_configs,
+                field_values=field_values,
+            )
+
+            if not validation_result["is_valid"] and not skip_validation:
+                raise ValidationError(
+                    errors=validation_result["errors"],
+                    warnings=validation_result["warnings"],
+                )
+
+            field_values = validation_result["formatted_values"]
 
         pdf_bytes = self._render_preview_pdf(template, fields, field_values)
 
@@ -504,3 +539,56 @@ class PreviewService:
 
         except Exception as e:
             logger.warning(f"Erro ao limpar arquivos do preview: {e}")
+
+    def _build_field_configs(self, fields: list[Field]) -> list[dict]:
+        """Converte campos do modelo para configurações de validação."""
+        return [
+            {
+                "name": field.name,
+                "label": field.label,
+                "field_type": field.field_type,
+                "required": field.required,
+                "max_length": field.max_length,
+                "min_length": None,
+                "width": field.width,
+                "height": field.height,
+                "font_size": field.font_size,
+                "font_family": field.font_family,
+            }
+            for field in fields
+        ]
+
+    def _validate_field_values(
+        self,
+        field_configs: list[dict],
+        field_values: dict[str, str],
+    ) -> dict:
+        """
+        Valida valores dos campos.
+
+        Returns:
+            dict com is_valid, errors, warnings, formatted_values
+        """
+        validator = FieldValidationService()
+
+        is_valid, errors, formatted_values = validator.validate_fields(
+            field_configs=field_configs,
+            field_values=field_values,
+        )
+
+        errors_list = [
+            {
+                "field_name": error.field_name,
+                "code": error.code,
+                "message": error.message,
+                "value": error.value,
+            }
+            for error in errors
+        ]
+
+        return {
+            "is_valid": is_valid,
+            "errors": errors_list,
+            "warnings": [],
+            "formatted_values": formatted_values,
+        }

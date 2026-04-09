@@ -29,6 +29,26 @@ from app.schemas.pdf_metadata_schema import (
     FormFieldSchema,
     PageDimensionsSchema,
 )
+from app.schemas.validation_schema import (
+    FieldValidationConfig,
+    FieldValidationItem,
+    FieldValuesRequest,
+    FieldValidationResponse,
+    FieldValueValidationRequest,
+    FieldValueValidationResponse,
+)
+from app.schemas.preview_schema import (
+    PreviewCreateRequest,
+    PreviewConfirmRequest,
+    PreviewResponse,
+    PreviewTokenResponse,
+    PreviewConfirmResponse,
+    PreviewCancelResponse,
+    PreviewListResponse,
+    PreviewImageResponse,
+    FieldValidationError,
+    PreviewValidationResult,
+)
 
 __all__ = [
     "TemplateBase",
@@ -49,4 +69,20 @@ __all__ = [
     "ImageInfoSchema",
     "FormFieldSchema",
     "PageDimensionsSchema",
+    "FieldValidationConfig",
+    "FieldValidationItem",
+    "FieldValuesRequest",
+    "FieldValidationResponse",
+    "FieldValueValidationRequest",
+    "FieldValueValidationResponse",
+    "PreviewCreateRequest",
+    "PreviewConfirmRequest",
+    "PreviewResponse",
+    "PreviewTokenResponse",
+    "PreviewConfirmResponse",
+    "PreviewCancelResponse",
+    "PreviewListResponse",
+    "PreviewImageResponse",
+    "FieldValidationError",
+    "PreviewValidationResult",
 ]
