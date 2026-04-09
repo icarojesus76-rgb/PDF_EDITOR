@@ -71,10 +71,10 @@ class Template(Base):
         cascade="all, delete-orphan",
         lazy="dynamic",
     )
-    metadata = relationship(
+    pdf_metadata = relationship(
         "PDFMetadata",
         back_populates="template",
-        uselist=False,  # One-to-one
+        uselist=False,
         cascade="all, delete-orphan",
     )
     fields = relationship(
