@@ -22,6 +22,7 @@ from app.services import (
     PDFValidationService,
     PDFLoaderService,
     TemplateService,
+    AuditService,
 )
 
 router = APIRouter(
@@ -36,11 +37,13 @@ router = APIRouter(
 
 def get_template_service(db: Session = Depends(get_db)) -> TemplateService:
     """Factory para injeção de dependência do TemplateService."""
+    audit_service = AuditService(db)
     return TemplateService(
         db=db,
         file_storage=FileStorageService(),
         pdf_validator=PDFValidationService(),
         pdf_loader=PDFLoaderService(),
+        audit_service=audit_service,
     )
 
 

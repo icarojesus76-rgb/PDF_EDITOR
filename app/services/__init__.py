@@ -9,10 +9,12 @@ from app.services.file_storage import FileStorageService
 from app.services.pdf_validation import PDFValidationService
 from app.services.pdf_loader import PDFLoaderService
 from app.services.template_service import TemplateService
+from app.services.audit_service import AuditService
 
 __all__ = [
     "FileStorageService",
     "PDFValidationService",
     "PDFLoaderService",
     "TemplateService",
+    "AuditService",
 ]

@@ -9,6 +9,8 @@ Contém a lógica de negócio para operações com templates:
 - Gestão de metadados
 """
 
+from typing import TYPE_CHECKING, Optional
+
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
@@ -19,6 +21,9 @@ from app.services.pdf_validation import PDFValidationService
 from app.services.pdf_loader import PDFLoaderService
 from app.core.exceptions import TemplateNotFoundError, TemplateAlreadyExistsError
 from app.core.logging_config import logger
+
+if TYPE_CHECKING:
+    from app.services.audit_service import AuditService
 
 
 class TemplateService:
@@ -38,11 +43,13 @@ class TemplateService:
         file_storage: FileStorageService,
         pdf_validator: PDFValidationService,
         pdf_loader: PDFLoaderService | None = None,
+        audit_service: Optional["AuditService"] = None,
     ):
         self.db = db
         self.file_storage = file_storage
         self.pdf_validator = pdf_validator
         self.pdf_loader = pdf_loader or PDFLoaderService()
+        self.audit_service = audit_service
 
     def create_template(
         self, filename: str, file_content: bytes, custom_name: str | None = None
@@ -96,6 +103,16 @@ class TemplateService:
         self.db.refresh(db_template)
 
         logger.info(f"Template criado: ID={db_template.id}")
+
+        if self.audit_service:
+            try:
+                self.audit_service.log_template_upload(
+                    template_id=db_template.id,
+                    template_name=db_template.name,
+                    file_size=db_template.file_size,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log audit: {e}")
 
         # 4. Extrai metadados detalhados
         try:
@@ -278,6 +295,19 @@ class TemplateService:
 
         logger.info(f"Template arquivado: {template_id}")
 
+        if self.audit_service:
+            try:
+                from app.domain.models.audit_log import AuditAction
+
+                self.audit_service.log(
+                    action=AuditAction.TEMPLATE_ARCHIVE,
+                    template_id=template.id,
+                    template_name=template.name,
+                    payload={"status": "archived"},
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log audit: {e}")
+
         return template
 
     def delete_template(self, template_id: int) -> None:
@@ -295,9 +325,11 @@ class TemplateService:
         self.file_storage.delete_file(template.file_path)
 
         # Deleta metadados JSON se existir
-        if template.metadata:
+        if template.pdf_metadata:
             try:
-                self.pdf_loader.load_metadata_json(template.metadata.metadata_json_path)
+                self.pdf_loader.load_metadata_json(
+                    template.pdf_metadata.metadata_json_path
+                )
                 # Não precisa deletar manualmente, cascade do SQLAlchemy
                 # cuida dos registros no banco
             except:
@@ -308,3 +340,16 @@ class TemplateService:
         self.db.commit()
 
         logger.info(f"Template deletado permanentemente: {template_id}")
+
+        if self.audit_service:
+            try:
+                from app.domain.models.audit_log import AuditAction
+
+                self.audit_service.log(
+                    action=AuditAction.TEMPLATE_DELETE,
+                    template_id=template_id,
+                    template_name=template.name,
+                    payload={"file_path": template.file_path},
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log audit: {e}")

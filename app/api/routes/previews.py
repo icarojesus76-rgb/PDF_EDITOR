@@ -21,6 +21,7 @@ from app.schemas.preview_schema import (
     PreviewListResponse,
 )
 from app.services.preview_service import PreviewService
+from app.services.audit_service import AuditService
 
 router = APIRouter(
     prefix="/previews",
@@ -34,7 +35,8 @@ router = APIRouter(
 
 def get_preview_service(db: Session = Depends(get_db)) -> PreviewService:
     """Factory para injeção de dependência do PreviewService."""
-    return PreviewService(db=db)
+    audit_service = AuditService(db)
+    return PreviewService(db=db, audit_service=audit_service)
 
 
 @router.post(

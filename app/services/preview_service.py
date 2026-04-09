@@ -11,7 +11,7 @@ import os
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import fitz
 from PIL import Image
@@ -25,6 +25,9 @@ from app.domain.models.field import Field
 from app.domain.models.preview import Preview, PreviewStatus
 from app.domain.models.template import Template
 from app.domain.models.version import Version, VersionStatus
+
+if TYPE_CHECKING:
+    from app.services.audit_service import AuditService
 
 
 class ValidationError(PDFEditorException):
@@ -85,9 +88,10 @@ class PreviewService:
 
     PREVIEW_EXPIRY_HOURS = 24
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, audit_service: Optional["AuditService"] = None):
         self.db = db
         self.settings = get_settings()
+        self.audit_service = audit_service
 
     def create_preview(
         self,
@@ -172,6 +176,18 @@ class PreviewService:
         self.db.refresh(preview)
 
         logger.info(f"Preview criado: ID={preview.id}, template={template_id}")
+
+        if self.audit_service:
+            try:
+                from app.domain.models.audit_log import AuditAction
+
+                self.audit_service.log_preview_generate(
+                    preview_id=preview.id,
+                    template_id=template_id,
+                    field_count=len(field_values),
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log audit: {e}")
 
         return preview
 
@@ -263,6 +279,21 @@ class PreviewService:
 
         logger.info(f"Preview confirmado: ID={preview_id}, versão={version.id}")
 
+        if self.audit_service:
+            try:
+                from app.domain.models.audit_log import AuditAction
+
+                self.audit_service.log(
+                    action=AuditAction.PREVIEW_CONFIRM,
+                    preview_id=preview_id,
+                    template_id=preview.template_id,
+                    version_id=version.id,
+                    version_number=version.version_number,
+                    payload={"version_name": version_name},
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log audit: {e}")
+
         return version
 
     def cancel_preview(self, preview_id: int) -> Preview:
@@ -289,6 +320,18 @@ class PreviewService:
         self._cleanup_preview_files(preview)
 
         logger.info(f"Preview cancelado: ID={preview_id}")
+
+        if self.audit_service:
+            try:
+                from app.domain.models.audit_log import AuditAction
+
+                self.audit_service.log(
+                    action=AuditAction.PREVIEW_CANCEL,
+                    preview_id=preview_id,
+                    template_id=preview.template_id,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log audit: {e}")
 
         return preview
 

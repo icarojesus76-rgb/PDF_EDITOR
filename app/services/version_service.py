@@ -9,7 +9,7 @@ import hashlib
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy.orm import Session
 
@@ -18,6 +18,9 @@ from app.core.exceptions import VersionNotFoundError, TemplateNotFoundError
 from app.core.logging_config import logger
 from app.domain.models.template import Template
 from app.domain.models.version import Version, VersionStatus
+
+if TYPE_CHECKING:
+    from app.services.audit_service import AuditService
 
 
 class VersionService:
@@ -32,9 +35,10 @@ class VersionService:
     - Rastreamento de usuário responsável
     """
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, audit_service: Optional["AuditService"] = None):
         self.db = db
         self.settings = get_settings()
+        self.audit_service = audit_service
 
     def create_version(
         self,
@@ -109,6 +113,20 @@ class VersionService:
             f"Versão criada: ID={version.id}, v{version_number}, "
             f"template={template_id}, user={created_by}"
         )
+
+        if self.audit_service:
+            try:
+                from app.domain.models.audit_log import AuditAction
+
+                self.audit_service.log_version_create(
+                    version_id=version.id,
+                    version_number=version.version_number,
+                    template_id=template_id,
+                    template_name=template.name if template else "",
+                    field_count=len(field_data) if field_data else 0,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log audit: {e}")
 
         return version
 
@@ -248,6 +266,18 @@ class VersionService:
         if not full_path.exists():
             logger.error(f"Arquivo não encontrado: {full_path}")
             raise FileNotFoundError(f"Arquivo da versão {version_id} não encontrado")
+
+        if self.audit_service:
+            try:
+                from app.domain.models.audit_log import AuditAction
+
+                self.audit_service.log_version_download(
+                    version_id=version.id,
+                    version_number=version.version_number,
+                    template_id=version.template_id,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log audit: {e}")
 
         return full_path.read_bytes()
 

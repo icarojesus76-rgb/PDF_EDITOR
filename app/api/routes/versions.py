@@ -18,6 +18,7 @@ from app.schemas.version_schema import (
     VersionVerifyChecksumResponse,
 )
 from app.services.version_service import VersionService
+from app.services.audit_service import AuditService
 
 router = APIRouter(
     prefix="/versions",
@@ -31,7 +32,8 @@ router = APIRouter(
 
 def get_version_service(db: Session = Depends(get_db)) -> VersionService:
     """Factory para injeção de dependência do VersionService."""
-    return VersionService(db=db)
+    audit_service = AuditService(db)
+    return VersionService(db=db, audit_service=audit_service)
 
 
 @router.get(
