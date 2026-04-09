@@ -49,6 +49,11 @@ class Settings(BaseSettings):
         default=Path("storage/versions"), description="Diretório para versões derivadas"
     )
 
+    PREVIEWS_PATH: Path = Field(
+        default=Path("storage/previews"),
+        description="Diretório para pré-visualizações temporárias",
+    )
+
     # Logging
     LOG_LEVEL: str = Field(
         default="INFO", description="Log level: DEBUG, INFO, WARNING, ERROR"
@@ -71,6 +76,7 @@ class Settings(BaseSettings):
         """Garante que todos os diretórios de storage existem."""
         self.TEMPLATES_PATH.mkdir(parents=True, exist_ok=True)
         self.VERSIONS_PATH.mkdir(parents=True, exist_ok=True)
+        self.PREVIEWS_PATH.mkdir(parents=True, exist_ok=True)
         Path(self.LOG_FILE).parent.mkdir(parents=True, exist_ok=True)
 
 

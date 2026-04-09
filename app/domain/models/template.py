@@ -84,6 +84,12 @@ class Template(Base):
         lazy="dynamic",
         order_by="Field.order, Field.id",
     )
+    previews = relationship(
+        "Preview",
+        back_populates="template",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
 
     def __repr__(self) -> str:
         return f"<Template(id={self.id}, name='{self.name}', status={self.status})>"
